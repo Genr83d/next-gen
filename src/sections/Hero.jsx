@@ -45,7 +45,6 @@ const Hero = () => {
             </div>
           </div>
           <div className="relative animate-fade-up-delay">
-            <div className="absolute -left-6 top-8 h-24 w-24 animate-float-slow rounded-2xl border border-white/20 bg-white/10" />
             <div className="rounded-[28px] border border-white/10 bg-charcoal-soft p-6 shadow-card">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
