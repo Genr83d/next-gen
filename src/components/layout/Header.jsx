@@ -1,7 +1,7 @@
 import { Link, NavLink } from 'react-router-dom';
 import Container from './Container';
 import Button from '../ui/Button';
-import logo from '../../assets/next-gen.png';
+import logo from '../../assets/next-gen.svg';
 
 const Header = () => {
   return (
@@ -11,7 +11,7 @@ const Header = () => {
           <img
             src={logo}
             alt="Next-Gen Academy"
-            className="h-10 w-auto rounded-xl sm:h-12 md:h-14"
+            className="h-10 w-auto sm:h-12 md:h-14"
           />
         </Link>
         <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
