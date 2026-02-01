@@ -1,18 +1,18 @@
 import { Link, NavLink } from 'react-router-dom';
 import Container from './Container';
 import Button from '../ui/Button';
+import logo from '../../assets/next-gen.png';
 
 const Header = () => {
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-charcoal/90 backdrop-blur">
       <Container className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <Link to="/" className="flex items-center gap-3 text-lg font-semibold">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-electric-orange text-charcoal shadow-glow">
-            NG
-          </span>
-          <span className="tracking-wide">
-            NEXT-GEN <span className="text-electric-orange">ACADEMY</span>
-          </span>
+          <img
+            src={logo}
+            alt="Next-Gen Academy"
+            className="h-10 w-auto rounded-xl sm:h-12 md:h-14"
+          />
         </Link>
         <nav className="flex flex-wrap items-center gap-4 text-sm font-medium">
           <NavLink
