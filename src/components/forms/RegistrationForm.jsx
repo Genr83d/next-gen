@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { courses, genderOptions, scheduleOptions } from '../../data/courses';
-import { submitRegistration } from '../../services/registrationService';
+import { submitApplication } from '../../services/applicationService';
 import { generateRegistrationPdf } from '../../utils/generateRegistrationPdf';
 import Button from '../ui/Button';
 import FormField from '../ui/FormField';
@@ -139,7 +139,7 @@ const RegistrationForm = () => {
     setStatus({ state: 'submitting', message: 'Submitting registration...' });
 
     try {
-      await submitRegistration(payload);
+      await submitApplication(payload);
       setLastPayload(payload);
       downloadPdf(payload);
       setStatus({
