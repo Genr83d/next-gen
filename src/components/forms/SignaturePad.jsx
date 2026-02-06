@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 
 const SignaturePad = ({ value, onChange }) => {
   const canvasRef = useRef(null);
@@ -14,11 +14,11 @@ const SignaturePad = ({ value, onChange }) => {
       const { width, height } = canvas.getBoundingClientRect();
       canvas.width = width * ratio;
       canvas.height = height * ratio;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
       ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
       ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.strokeStyle = '#FF6A00';
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#FF6A00";
 
       if (value) {
         const img = new Image();
@@ -30,8 +30,8 @@ const SignaturePad = ({ value, onChange }) => {
     };
 
     resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return () => window.removeEventListener('resize', resizeCanvas);
+    window.addEventListener("resize", resizeCanvas);
+    return () => window.removeEventListener("resize", resizeCanvas);
   }, [value]);
 
   const getPoint = (event) => {
@@ -45,7 +45,7 @@ const SignaturePad = ({ value, onChange }) => {
   const startDrawing = (event) => {
     event.preventDefault();
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     const { x, y } = getPoint(event);
     drawing.current = true;
     ctx.beginPath();
@@ -56,7 +56,7 @@ const SignaturePad = ({ value, onChange }) => {
     if (!drawing.current) return;
     event.preventDefault();
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     const { x, y } = getPoint(event);
     ctx.lineTo(x, y);
     ctx.stroke();
@@ -66,16 +66,16 @@ const SignaturePad = ({ value, onChange }) => {
     if (!drawing.current) return;
     drawing.current = false;
     const canvas = canvasRef.current;
-    const dataUrl = canvas.toDataURL('image/png');
+    const dataUrl = canvas.toDataURL("image/png");
     onChange(dataUrl);
     setHasSignature(true);
   };
 
   const clearSignature = () => {
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    onChange('');
+    onChange("");
     setHasSignature(false);
   };
 
@@ -98,7 +98,7 @@ const SignaturePad = ({ value, onChange }) => {
         onClick={clearSignature}
         className="text-xs font-semibold uppercase tracking-wide text-slate-300 transition hover:text-electric-orange"
       >
-        {hasSignature ? 'Clear signature' : 'Start over'}
+        {hasSignature ? "Clear signature" : "Start over"}
       </button>
     </div>
   );

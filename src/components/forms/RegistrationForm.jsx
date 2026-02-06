@@ -7,7 +7,8 @@ import FormField from '../ui/FormField';
 import SignaturePad from './SignaturePad';
 
 const initialForm = {
-  fullName: '',
+  firstName: '',
+  lastName: '',
   dob: '',
   gender: '',
   address: '',
@@ -65,7 +66,8 @@ const RegistrationForm = () => {
   const validate = () => {
     const nextErrors = {};
 
-    if (!formData.fullName.trim()) nextErrors.fullName = 'Full name is required.';
+    if (!formData.firstName.trim()) nextErrors.firstName = 'First name is required.';
+    if (!formData.lastName.trim()) nextErrors.lastName = 'Last name is required.';
     if (!formData.dob) nextErrors.dob = 'Date of birth is required.';
     if (!formData.address.trim()) nextErrors.address = 'Address is required.';
     if (!formData.phone.trim()) nextErrors.phone = 'Phone number is required.';
@@ -91,11 +93,17 @@ const RegistrationForm = () => {
       .filter((course) => formData.courses.includes(course.id))
       .map((course) => ({ id: course.id, title: course.title }));
 
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
     const genderLabel = genderOptions.find((option) => option.value === formData.gender)?.label;
     const scheduleLabel = scheduleOptions.find((option) => option.value === formData.schedule)?.label;
 
     return {
       ...formData,
+      firstName,
+      lastName,
+      fullName,
       genderLabel: genderLabel || 'Not specified',
       scheduleLabel: scheduleLabel || 'Not selected',
       courses: selectedCourses,
@@ -107,8 +115,11 @@ const RegistrationForm = () => {
 
   const downloadPdf = (payload) => {
     const doc = generateRegistrationPdf(payload);
-    const safeName = payload.fullName?.trim()
-      ? payload.fullName.trim().toLowerCase().replace(/\s+/g, '-')
+    const nameSource =
+      payload.fullName?.trim() ||
+      [payload.firstName, payload.lastName].filter(Boolean).join(' ');
+    const safeName = nameSource?.trim()
+      ? nameSource.trim().toLowerCase().replace(/\s+/g, '-')
       : 'student';
     const fileName = `next-gen-registration-${safeName}.pdf`;
     doc.save(fileName);
@@ -163,18 +174,36 @@ const RegistrationForm = () => {
       )}
 
       <div className="grid gap-6 md:grid-cols-2">
-        <FormField label="Student Full Name" labelFor="fullName" required error={errors.fullName}>
+        <FormField label="Student First Name" labelFor="firstName" required error={errors.firstName}>
           {({ errorId }) => (
             <input
-              id="fullName"
-              name="fullName"
+              id="firstName"
+              name="firstName"
               type="text"
-              value={formData.fullName}
+              value={formData.firstName}
               onChange={updateField}
               className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange ${
-                errors.fullName ? 'border-red-500/60' : 'border-white/10'
+                errors.firstName ? 'border-red-500/60' : 'border-white/10'
               }`}
-              aria-invalid={Boolean(errors.fullName)}
+              aria-invalid={Boolean(errors.firstName)}
+              aria-describedby={errorId}
+              required
+            />
+          )}
+        </FormField>
+
+        <FormField label="Student Last Name" labelFor="lastName" required error={errors.lastName}>
+          {({ errorId }) => (
+            <input
+              id="lastName"
+              name="lastName"
+              type="text"
+              value={formData.lastName}
+              onChange={updateField}
+              className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange ${
+                errors.lastName ? 'border-red-500/60' : 'border-white/10'
+              }`}
+              aria-invalid={Boolean(errors.lastName)}
               aria-describedby={errorId}
               required
             />
