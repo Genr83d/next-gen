@@ -55,7 +55,8 @@ export const generateRegistrationPdf = (data) => {
   y += 28;
   doc.setFontSize(11);
 
-  y = renderField(doc, 'Student Name', data.fullName, margin, y);
+  y = renderField(doc, 'Student First Name', data.firstName, margin, y);
+  y = renderField(doc, 'Student Last Name', data.lastName, margin, y + 4);
   y = renderField(doc, 'Date of Birth', formatDob(data.dob), margin, y + 4);
   y = renderField(doc, 'Gender', data.genderLabel, margin, y + 4);
   y = renderField(doc, 'Address', data.address, margin, y + 4, { width: 300 });
