@@ -1,6 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { courses, genderOptions, scheduleOptions } from '../../data/courses';
 import { submitApplication } from '../../services/applicationService';
+import {
+  observeAuthState,
+  sendVerificationEmail,
+  signInWithGoogle,
+  signOutUser,
+} from '../../services/authService';
+import { ensureUserProfile } from '../../services/userService';
 import { generateRegistrationPdf } from '../../utils/generateRegistrationPdf';
 import Button from '../ui/Button';
 import FormField from '../ui/FormField';
@@ -44,9 +51,55 @@ const RegistrationForm = () => {
   const [errors, setErrors] = useState({});
   const [status, setStatus] = useState({ state: 'idle', message: '' });
   const [lastPayload, setLastPayload] = useState(null);
+  const [authUser, setAuthUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [authError, setAuthError] = useState('');
+  const [authAction, setAuthAction] = useState(false);
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const age = useMemo(() => getAge(formData.dob), [formData.dob]);
   const requiresGuardian = age !== null && age < 18;
+  const hasThirdPartyProvider = useMemo(
+    () =>
+      Boolean(
+        authUser?.providerData?.some((provider) => provider.providerId !== 'password')
+      ),
+    [authUser]
+  );
+  const isVerifiedUser = Boolean(
+    authUser && (authUser.emailVerified || hasThirdPartyProvider || authUser.phoneNumber)
+  );
+  const isFormLocked = authLoading || !isVerifiedUser;
+
+  useEffect(() => {
+    let isMounted = true;
+    const handleAuthChange = async (user) => {
+      if (!isMounted) return;
+      setAuthUser(user);
+      setAuthLoading(false);
+      setAuthError('');
+      setVerificationSent(false);
+
+      if (user) {
+        try {
+          await ensureUserProfile(user);
+        } catch (error) {
+          if (isMounted) {
+            setAuthError(error?.message || 'Unable to create user profile.');
+          }
+        }
+      }
+    };
+
+    const unsubscribe = observeAuthState((user) => {
+      void handleAuthChange(user);
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
 
   const updateField = (event) => {
     const { name, value } = event.target;
@@ -61,6 +114,44 @@ const RegistrationForm = () => {
         : [...prev.courses, courseId];
       return { ...prev, courses: nextCourses };
     });
+  };
+
+  const handleGoogleSignIn = async () => {
+    setAuthError('');
+    setAuthAction(true);
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthError(error?.message || 'Unable to sign in. Please try again.');
+    } finally {
+      setAuthAction(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setAuthError('');
+    setAuthAction(true);
+    try {
+      await signOutUser();
+    } catch (error) {
+      setAuthError(error?.message || 'Unable to sign out. Please try again.');
+    } finally {
+      setAuthAction(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!authUser) return;
+    setAuthError('');
+    setAuthAction(true);
+    try {
+      await sendVerificationEmail(authUser);
+      setVerificationSent(true);
+    } catch (error) {
+      setAuthError(error?.message || 'Unable to send verification email.');
+    } finally {
+      setAuthAction(false);
+    }
   };
 
   const validate = () => {
@@ -98,12 +189,21 @@ const RegistrationForm = () => {
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
     const genderLabel = genderOptions.find((option) => option.value === formData.gender)?.label;
     const scheduleLabel = scheduleOptions.find((option) => option.value === formData.schedule)?.label;
+    const authMeta = authUser
+      ? {
+          authUid: authUser.uid,
+          authEmail: authUser.email || '',
+          authProvider: authUser.providerData?.[0]?.providerId || 'unknown',
+          authVerified: isVerifiedUser,
+        }
+      : {};
 
     return {
       ...formData,
       firstName,
       lastName,
       fullName,
+      ...authMeta,
       genderLabel: genderLabel || 'Not specified',
       scheduleLabel: scheduleLabel || 'Not selected',
       courses: selectedCourses,
@@ -127,6 +227,21 @@ const RegistrationForm = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (authLoading) {
+      setStatus({
+        state: 'error',
+        message: 'Checking verification status. Please wait a moment.',
+      });
+      return;
+    }
+    if (!isVerifiedUser) {
+      setStatus({
+        state: 'error',
+        message: 'Please sign in and verify your account before submitting.',
+      });
+      return;
+    }
+
     const validationErrors = validate();
     setErrors(validationErrors);
 
@@ -173,7 +288,68 @@ const RegistrationForm = () => {
         </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-4 text-sm text-white">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-semibold">Verification required</p>
+            {authLoading && (
+              <p className="text-xs text-slate-300">Checking your verification status...</p>
+            )}
+            {!authLoading && !authUser && (
+              <p className="text-xs text-slate-300">
+                Sign in to unlock the registration form and prevent spam submissions.
+              </p>
+            )}
+            {!authLoading && authUser && !isVerifiedUser && (
+              <p className="text-xs text-slate-300">
+                Verify your account to continue. Check your inbox for a verification email.
+              </p>
+            )}
+            {!authLoading && authUser && isVerifiedUser && (
+              <p className="text-xs text-emerald-200">
+                Verified as {authUser.email || 'authenticated user'}.
+              </p>
+            )}
+            {verificationSent && (
+              <p className="text-xs text-emerald-200">Verification email sent.</p>
+            )}
+            {authError && (
+              <p className="text-xs text-red-300" role="alert">
+                {authError}
+              </p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {!authLoading && !authUser && (
+              <Button type="button" size="sm" variant="dark" onClick={handleGoogleSignIn} disabled={authAction}>
+                Continue with Google
+              </Button>
+            )}
+            {!authLoading && authUser && !isVerifiedUser && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleResendVerification}
+                disabled={authAction}
+              >
+                Resend verification email
+              </Button>
+            )}
+            {!authLoading && authUser && (
+              <Button type="button" size="sm" variant="ghost" onClick={handleSignOut} disabled={authAction}>
+                Sign out
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div
+        className={`space-y-8 ${isFormLocked ? 'pointer-events-none opacity-60' : ''}`}
+        aria-disabled={isFormLocked}
+      >
+        <div className="grid gap-6 md:grid-cols-2">
         <FormField label="Student First Name" labelFor="firstName" required error={errors.firstName}>
           {({ errorId }) => (
             <input
@@ -467,7 +643,11 @@ const RegistrationForm = () => {
       </div>
 
       <div className="flex flex-wrap items-center gap-4">
-        <Button type="submit" size="lg" disabled={status.state === 'submitting'}>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={status.state === 'submitting' || isFormLocked}
+        >
           {status.state === 'submitting' ? 'Submitting...' : 'Submit Registration'}
         </Button>
         {status.state === 'success' && lastPayload && (
@@ -480,6 +660,7 @@ const RegistrationForm = () => {
             Download PDF Again
           </Button>
         )}
+      </div>
       </div>
     </form>
   );
