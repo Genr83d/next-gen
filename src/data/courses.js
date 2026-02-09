@@ -54,9 +54,6 @@ export const scheduleOptions = [
 ];
 
 export const genderOptions = [
-  { value: '', label: 'Select (optional)' },
   { value: 'female', label: 'Female' },
   { value: 'male', label: 'Male' },
-  { value: 'non-binary', label: 'Non-binary' },
-  { value: 'prefer-not', label: 'Prefer not to say' },
 ];
