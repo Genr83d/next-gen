@@ -34,6 +34,9 @@ const initialForm = {
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const allowedGenderValues = new Set(['female', 'male']);
 const namePattern = /^(?=.*[\p{L}])[\p{L}\p{M}'’ -]+$/u;
+const addressPattern = /^(?=.*[\p{L}\p{M}0-9])[\p{L}\p{M}0-9\s.,#'’\-\/]+$/u;
+const schoolPattern = /^(?=.*[\p{L}\p{M}0-9])[\p{L}\p{M}0-9\s.&'’\-(),\/]+$/u;
+const signaturePattern = /^(?=.*[\p{L}])[\p{L}\p{M}.'’ -]+$/u;
 const nameFields = new Set(['firstName', 'lastName', 'emergencyName', 'guardianName']);
 const phoneDigitsPattern = /^\d+$/;
 const maxPhoneDigits = 15;
@@ -175,6 +178,9 @@ const RegistrationForm = () => {
 
     const firstName = formData.firstName.trim();
     const lastName = formData.lastName.trim();
+    const address = formData.address.trim();
+    const school = formData.school.trim();
+    const signatureTyped = formData.signatureTyped.trim();
     const emergencyName = formData.emergencyName.trim();
     const guardianName = formData.guardianName.trim();
 
@@ -196,7 +202,12 @@ const RegistrationForm = () => {
     } else if (!allowedGenderValues.has(formData.gender)) {
       nextErrors.gender = 'Please select either Female or Male.';
     }
-    if (!formData.address.trim()) nextErrors.address = 'Address is required.';
+    if (!address) {
+      nextErrors.address = 'Address is required.';
+    } else if (!addressPattern.test(address)) {
+      nextErrors.address =
+        'Use letters, numbers, spaces, and common punctuation only.';
+    }
     if (!formData.phone.trim()) {
       nextErrors.phone = 'Phone number is required.';
     } else if (!phoneDigitsPattern.test(formData.phone)) {
@@ -209,6 +220,9 @@ const RegistrationForm = () => {
     }
     if (formData.courses.length === 0) nextErrors.courses = 'Select at least one course.';
     if (!formData.schedule) nextErrors.schedule = 'Choose a preferred schedule.';
+    if (school && !schoolPattern.test(school)) {
+      nextErrors.school = 'Use letters, numbers, and common punctuation only.';
+    }
     if (!emergencyName) {
       nextErrors.emergencyName = 'Emergency contact name is required.';
     } else if (!namePattern.test(emergencyName)) {
@@ -224,6 +238,10 @@ const RegistrationForm = () => {
     } else if (guardianName && !namePattern.test(guardianName)) {
       nextErrors.guardianName = 'Use letters, spaces, hyphens, and apostrophes only.';
     }
+    if (signatureTyped && !signaturePattern.test(signatureTyped)) {
+      nextErrors.signatureTyped =
+        'Use letters, spaces, periods, hyphens, and apostrophes only.';
+    }
 
     return nextErrors;
   };
@@ -235,6 +253,9 @@ const RegistrationForm = () => {
 
     const firstName = formData.firstName.trim();
     const lastName = formData.lastName.trim();
+    const address = formData.address.trim();
+    const school = formData.school.trim();
+    const signatureTyped = formData.signatureTyped.trim();
     const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
     const genderLabel = genderOptions.find((option) => option.value === formData.gender)?.label;
     const scheduleLabel = scheduleOptions.find((option) => option.value === formData.schedule)?.label;
@@ -251,6 +272,9 @@ const RegistrationForm = () => {
       ...formData,
       firstName,
       lastName,
+      address,
+      school,
+      signatureTyped,
       fullName,
       ...authMeta,
       genderLabel: genderLabel || 'Not specified',
@@ -536,15 +560,21 @@ const RegistrationForm = () => {
           )}
         </FormField>
 
-        <FormField label="School" labelFor="school" hint="Optional">
-          <input
-            id="school"
-            name="school"
-            type="text"
-            value={formData.school}
-            onChange={updateField}
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange"
-          />
+        <FormField label="School" labelFor="school" hint="Optional" error={errors.school}>
+          {({ errorId }) => (
+            <input
+              id="school"
+              name="school"
+              type="text"
+              value={formData.school}
+              onChange={updateField}
+              className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange ${
+                errors.school ? 'border-red-500/60' : 'border-white/10'
+              }`}
+              aria-invalid={Boolean(errors.school)}
+              aria-describedby={errorId}
+            />
+          )}
         </FormField>
       </div>
 
@@ -686,15 +716,26 @@ const RegistrationForm = () => {
       </FormField>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <FormField label="Typed Signature" labelFor="signatureTyped" hint="Optional">
-          <input
-            id="signatureTyped"
-            name="signatureTyped"
-            type="text"
-            value={formData.signatureTyped}
-            onChange={updateField}
-            className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange"
-          />
+        <FormField
+          label="Typed Signature"
+          labelFor="signatureTyped"
+          hint="Optional"
+          error={errors.signatureTyped}
+        >
+          {({ errorId }) => (
+            <input
+              id="signatureTyped"
+              name="signatureTyped"
+              type="text"
+              value={formData.signatureTyped}
+              onChange={updateField}
+              className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange ${
+                errors.signatureTyped ? 'border-red-500/60' : 'border-white/10'
+              }`}
+              aria-invalid={Boolean(errors.signatureTyped)}
+              aria-describedby={errorId}
+            />
+          )}
         </FormField>
         <div className="space-y-2">
           <p className="text-sm font-semibold text-slate-200">Drawn Signature (optional)</p>
