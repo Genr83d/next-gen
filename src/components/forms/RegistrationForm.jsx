@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { courses, genderOptions, scheduleOptions } from '../../data/courses';
-import { submitApplication } from '../../services/applicationService';
+import { submitApplication, uploadStudentPhoto } from '../../services/applicationService';
 import {
   observeAuthState,
   sendVerificationEmail,
@@ -40,9 +40,22 @@ const signaturePattern = /^(?=.*[\p{L}])[\p{L}\p{M}.'’ -]+$/u;
 const nameFields = new Set(['firstName', 'lastName', 'emergencyName', 'guardianName']);
 const phoneDigitsPattern = /^\d+$/;
 const maxPhoneDigits = 15;
+const maxPhotoSizeBytes = 5 * 1024 * 1024;
+const allowedPhotoTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 const toDigitsOnly = (value) => value.replace(/\D/g, '').slice(0, maxPhoneDigits);
 const toNameValue = (value) => value.replace(/[^\p{L}\p{M}'’ -]/gu, '');
+
+const validatePhotoFile = (file) => {
+  if (!file) return 'Student photo is required.';
+  if (!allowedPhotoTypes.has(file.type)) {
+    return 'Upload a PNG, JPG, or WebP image file.';
+  }
+  if (file.size > maxPhotoSizeBytes) {
+    return 'Image must be 5MB or smaller.';
+  }
+  return '';
+};
 
 const getAge = (dob) => {
   if (!dob) return null;
@@ -60,6 +73,8 @@ const getAge = (dob) => {
 const RegistrationForm = () => {
   const [formData, setFormData] = useState(initialForm);
   const [errors, setErrors] = useState({});
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState('');
   const [status, setStatus] = useState({ state: 'idle', message: '' });
   const [lastPayload, setLastPayload] = useState(null);
   const [authUser, setAuthUser] = useState(null);
@@ -112,6 +127,14 @@ const RegistrationForm = () => {
     };
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (photoPreviewUrl) {
+        URL.revokeObjectURL(photoPreviewUrl);
+      }
+    };
+  }, [photoPreviewUrl]);
+
   const updateField = (event) => {
     const { name } = event.target;
     const rawValue = event.target.value;
@@ -123,6 +146,33 @@ const RegistrationForm = () => {
           : rawValue;
 
     setFormData((prev) => ({ ...prev, [name]: nextValue }));
+  };
+
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setPhotoFile(null);
+      setPhotoPreviewUrl('');
+      return;
+    }
+
+    const errorMessage = validatePhotoFile(file);
+    if (errorMessage) {
+      setPhotoFile(null);
+      setPhotoPreviewUrl('');
+      setErrors((prev) => ({ ...prev, studentPhoto: errorMessage }));
+      event.target.value = '';
+      return;
+    }
+
+    setErrors((prev) => {
+      if (!prev.studentPhoto) return prev;
+      const next = { ...prev };
+      delete next.studentPhoto;
+      return next;
+    });
+    setPhotoFile(file);
+    setPhotoPreviewUrl(URL.createObjectURL(file));
   };
 
   const toggleCourse = (courseId) => {
@@ -220,6 +270,8 @@ const RegistrationForm = () => {
     }
     if (formData.courses.length === 0) nextErrors.courses = 'Select at least one course.';
     if (!formData.schedule) nextErrors.schedule = 'Choose a preferred schedule.';
+    const photoError = validatePhotoFile(photoFile);
+    if (photoError) nextErrors.studentPhoto = photoError;
     if (school && !schoolPattern.test(school)) {
       nextErrors.school = 'Use letters, numbers, and common punctuation only.';
     }
@@ -286,8 +338,8 @@ const RegistrationForm = () => {
     };
   };
 
-  const downloadPdf = (payload) => {
-    const doc = generateRegistrationPdf(payload);
+  const downloadPdf = async (payload) => {
+    const doc = await generateRegistrationPdf(payload);
     const nameSource =
       payload.fullName?.trim() ||
       [payload.firstName, payload.lastName].filter(Boolean).join(' ');
@@ -324,12 +376,38 @@ const RegistrationForm = () => {
     }
 
     const payload = buildPayload();
+    if (!photoFile) {
+      setErrors((prev) => ({ ...prev, studentPhoto: 'Student photo is required.' }));
+      setStatus({ state: 'error', message: 'Please upload a student photo.' });
+      return;
+    }
+
+    setStatus({ state: 'submitting', message: 'Uploading student photo...' });
+    let studentPhoto = null;
+
+    try {
+      studentPhoto = await uploadStudentPhoto(photoFile, {
+        applicantName: payload.fullName,
+        authUid: authUser?.uid,
+      });
+    } catch (error) {
+      setStatus({
+        state: 'error',
+        message: error?.message || 'Unable to upload the student photo. Please try again.',
+      });
+      return;
+    }
+
+    const submissionPayload = {
+      ...payload,
+      studentPhoto,
+    };
     setStatus({ state: 'submitting', message: 'Submitting registration...' });
 
     try {
-      await submitApplication(payload);
-      setLastPayload(payload);
-      downloadPdf(payload);
+      await submitApplication(submissionPayload);
+      setLastPayload(submissionPayload);
+      await downloadPdf(submissionPayload);
       setStatus({
         state: 'success',
         message: 'Registration submitted. Your PDF form has been downloaded.',
@@ -538,6 +616,51 @@ const RegistrationForm = () => {
             aria-describedby={errorId}
             required
           />
+        )}
+      </FormField>
+
+      <FormField
+        label="Student Photo"
+        labelFor="studentPhoto"
+        required
+        hint="PNG, JPG, or WebP (max 5MB)"
+        error={errors.studentPhoto}
+      >
+        {({ errorId }) => (
+          <div className="space-y-3">
+            <input
+              id="studentPhoto"
+              name="studentPhoto"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              capture="user"
+              onChange={handlePhotoChange}
+              className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white file:mr-4 file:rounded-full file:border-0 file:bg-electric-orange file:px-4 file:py-2 file:text-xs file:font-semibold file:text-charcoal hover:file:bg-electric-orange-dark ${
+                errors.studentPhoto ? 'border-red-500/60' : 'border-white/10'
+              }`}
+              aria-invalid={Boolean(errors.studentPhoto)}
+              aria-describedby={errorId}
+              required
+              disabled={isFormLocked}
+            />
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+                {photoPreviewUrl ? (
+                  <img
+                    src={photoPreviewUrl}
+                    alt="Student preview"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-xs text-slate-400">No photo yet</span>
+                )}
+              </div>
+              <div className="space-y-1 text-xs text-slate-400">
+                <p>Upload a clear headshot of the student.</p>
+                {photoFile && <p className="text-slate-300">{photoFile.name}</p>}
+              </div>
+            </div>
+          </div>
         )}
       </FormField>
 
