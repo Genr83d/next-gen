@@ -40,7 +40,7 @@ const signaturePattern = /^(?=.*[\p{L}])[\p{L}\p{M}.'’ -]+$/u;
 const nameFields = new Set(['firstName', 'lastName', 'emergencyName', 'guardianName']);
 const phoneDigitsPattern = /^\d+$/;
 const maxPhoneDigits = 15;
-const maxPhotoSizeBytes = 5 * 1024 * 1024;
+const maxPhotoSizeBytes = 512 * 1024;
 const allowedPhotoTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 const toDigitsOnly = (value) => value.replace(/\D/g, '').slice(0, maxPhoneDigits);
@@ -52,7 +52,7 @@ const validatePhotoFile = (file) => {
     return 'Upload a PNG, JPG, or WebP image file.';
   }
   if (file.size > maxPhotoSizeBytes) {
-    return 'Image must be 5MB or smaller.';
+    return 'Image must be 512KB or smaller.';
   }
   return '';
 };
@@ -382,14 +382,11 @@ const RegistrationForm = () => {
       return;
     }
 
-    setStatus({ state: 'submitting', message: 'Uploading student photo...' });
+    setStatus({ state: 'submitting', message: 'Processing student photo...' });
     let studentPhoto = null;
 
     try {
-      studentPhoto = await uploadStudentPhoto(photoFile, {
-        applicantName: payload.fullName,
-        authUid: authUser?.uid,
-      });
+      studentPhoto = await uploadStudentPhoto(photoFile);
     } catch (error) {
       setStatus({
         state: 'error',

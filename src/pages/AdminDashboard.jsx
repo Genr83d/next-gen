@@ -9,6 +9,7 @@ import {
   updateApplicationStatus,
 } from '../services/applicationService';
 import { observeAuthState, signInWithGoogle, signOutUser } from '../services/authService';
+import { getUserProfile } from '../services/userService';
 import { generateRegistrationPdf } from '../utils/generateRegistrationPdf';
 
 const statusStyles = {
@@ -114,6 +115,7 @@ const AdminDashboard = () => {
       if (!isMounted) return;
       setAuthUser(user);
       setAuthError('');
+      setAuthLoading(true);
 
       if (!user) {
         setIsAdmin(false);
@@ -122,10 +124,13 @@ const AdminDashboard = () => {
       }
 
       try {
-        const tokenResult = await user.getIdTokenResult();
+        const profile = await getUserProfile(user.uid);
         if (!isMounted) return;
-        const claims = tokenResult?.claims || {};
-        setIsAdmin(Boolean(claims.admin || claims.isAdmin || claims.role === 'admin'));
+        const role = profile?.role;
+        setIsAdmin(String(role || '').toLowerCase() === 'admin');
+        if (!profile) {
+          setAuthError('No user profile found for this account.');
+        }
       } catch (error) {
         if (isMounted) {
           setIsAdmin(false);
@@ -282,7 +287,7 @@ const AdminDashboard = () => {
       emergencyPhone: application.emergencyPhone || '',
       guardianName: application.guardianName || '',
       status: application.status || 'submitted',
-      studentPhotoUrl: application.studentPhoto?.url || '',
+      studentPhotoUrl: application.studentPhoto?.dataUrl || application.studentPhoto?.url || '',
       studentPhotoType: application.studentPhoto?.contentType || '',
       studentPhotoSize: application.studentPhoto?.size || '',
       adminNotes: application.adminNotes || '',
@@ -349,8 +354,9 @@ const AdminDashboard = () => {
           <div className="rounded-3xl border border-white/10 bg-black/30 p-6">
             <h1 className="text-2xl font-semibold text-white">Admin Dashboard</h1>
             <p className="mt-2 text-sm text-slate-300">
-              This account does not have admin privileges. Ask a system administrator to grant the
-              <span className="text-white"> admin</span> claim.
+              This account does not have admin privileges. Ask a system administrator to set the
+              <span className="text-white"> role</span> field to <span className="text-white">admin</span> in the
+              users collection.
             </p>
             {authError && <p className="mt-3 text-sm text-red-300">{authError}</p>}
             <div className="mt-5 flex flex-wrap gap-3">
@@ -505,6 +511,7 @@ const AdminDashboard = () => {
                   ? 'Typed signature'
                   : 'No signature';
               const photoMeta = application.studentPhoto;
+              const photoUrl = photoMeta?.dataUrl || photoMeta?.url || '';
               const createdAtText = formatTimestamp(
                 application.createdAt || application.submittedAt
               );
@@ -544,9 +551,9 @@ const AdminDashboard = () => {
                   <div className="mt-6 grid gap-6 lg:grid-cols-[140px_1fr]">
                     <div className="space-y-3">
                       <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-black/40">
-                        {photoMeta?.url ? (
+                        {photoUrl ? (
                           <img
-                            src={photoMeta.url}
+                            src={photoUrl}
                             alt="Student"
                             className="h-full w-full object-cover"
                           />

@@ -9,38 +9,23 @@ import {
   serverTimestamp,
   updateDoc,
 } from 'firebase/firestore';
-import { deleteObject, getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { deleteObject, ref } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
 
-const buildStoragePath = ({ fileName, applicantName = '', authUid = '' }) => {
-  const safeName = applicantName
-    ? applicantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-    : 'student';
-  const safeFileName = fileName
-    ? fileName.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/(^-|-$)/g, '')
-    : 'photo';
-  const timeStamp = Date.now();
-  const uidSegment = authUid || 'guest';
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Unable to read the student photo.'));
+    reader.readAsDataURL(file);
+  });
 
-  return `applications/${uidSegment}/${timeStamp}-${safeName}-${safeFileName}`;
-};
-
-export const uploadStudentPhoto = async (file, { applicantName, authUid } = {}) => {
+export const uploadStudentPhoto = async (file) => {
   if (!file) throw new Error('Student photo is required.');
-  const storagePath = buildStoragePath({
-    fileName: file.name,
-    applicantName,
-    authUid,
-  });
-  const fileRef = ref(storage, storagePath);
-  const snapshot = await uploadBytes(fileRef, file, {
-    contentType: file.type,
-  });
-  const url = await getDownloadURL(snapshot.ref);
+  const dataUrl = await readFileAsDataUrl(file);
 
   return {
-    url,
-    path: storagePath,
+    dataUrl,
     fileName: file.name,
     contentType: file.type,
     size: file.size,

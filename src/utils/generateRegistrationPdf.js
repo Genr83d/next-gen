@@ -123,7 +123,8 @@ export const generateRegistrationPdf = async (data) => {
   y = renderField(doc, 'Email', data.email, margin, y + 4);
   y = renderField(doc, 'School', data.school, margin, y + 4);
 
-  const photoData = await resolvePhotoDataUrl(data.studentPhoto?.url);
+  const photoSource = data.studentPhoto?.dataUrl || data.studentPhoto?.url;
+  const photoData = await resolvePhotoDataUrl(photoSource);
   y = await renderStudentPhoto(doc, photoData.dataUrl, photoData.state, margin, y + 16);
 
   y += 12;
