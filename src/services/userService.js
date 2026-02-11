@@ -1,6 +1,19 @@
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
+export const getUserProfile = async (uid) => {
+  if (!uid) return null;
+
+  const userRef = doc(db, 'users', uid);
+  const snapshot = await getDoc(userRef);
+
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return snapshot.data();
+};
+
 export const ensureUserProfile = async (user) => {
   if (!user?.uid) return null;
 
