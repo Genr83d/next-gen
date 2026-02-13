@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { courses, genderOptions, scheduleOptions } from '../../data/courses';
-import { submitApplication, uploadStudentPhoto } from '../../services/applicationService';
+import { getApplicationByAuthUid, submitApplication, uploadStudentPhoto } from '../../services/applicationService';
 import {
   observeAuthState,
   sendVerificationEmail,
@@ -82,6 +82,8 @@ const RegistrationForm = () => {
   const [authError, setAuthError] = useState('');
   const [authAction, setAuthAction] = useState(false);
   const [verificationSent, setVerificationSent] = useState(false);
+  const [existingApplication, setExistingApplication] = useState(null);
+  const [existingApplicationLoading, setExistingApplicationLoading] = useState(false);
 
   const age = useMemo(() => getAge(formData.dob), [formData.dob]);
   const requiresGuardian = age !== null && age < 18;
@@ -95,7 +97,7 @@ const RegistrationForm = () => {
   const isVerifiedUser = Boolean(
     authUser && (authUser.emailVerified || hasThirdPartyProvider || authUser.phoneNumber)
   );
-  const isFormLocked = authLoading || !isVerifiedUser;
+  const isFormLocked = authLoading || !isVerifiedUser || existingApplicationLoading || Boolean(existingApplication);
 
   useEffect(() => {
     let isMounted = true;
@@ -134,6 +136,28 @@ const RegistrationForm = () => {
       }
     };
   }, [photoPreviewUrl]);
+
+  useEffect(() => {
+    if (!isVerifiedUser || !authUser) {
+      setExistingApplication(null);
+      return undefined;
+    }
+    let isMounted = true;
+    setExistingApplicationLoading(true);
+    getApplicationByAuthUid(authUser.uid)
+      .then((application) => {
+        if (isMounted) {
+          setExistingApplication(application);
+          setExistingApplicationLoading(false);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setExistingApplicationLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [authUser, isVerifiedUser]);
 
   const updateField = (event) => {
     const { name } = event.target;
@@ -366,6 +390,13 @@ const RegistrationForm = () => {
       });
       return;
     }
+    if (existingApplication) {
+      setStatus({
+        state: 'error',
+        message: 'A registration has already been submitted for this account.',
+      });
+      return;
+    }
 
     const validationErrors = validate();
     setErrors(validationErrors);
@@ -403,6 +434,7 @@ const RegistrationForm = () => {
 
     try {
       await submitApplication(submissionPayload);
+      setExistingApplication(submissionPayload);
       setLastPayload(submissionPayload);
       await downloadPdf(submissionPayload);
       setStatus({
@@ -492,6 +524,39 @@ const RegistrationForm = () => {
           </div>
         </div>
       </div>
+
+      {existingApplicationLoading && (
+        <div className="rounded-2xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-slate-300">
+          Checking for existing registration...
+        </div>
+      )}
+
+      {existingApplication && (
+        <div className="rounded-2xl border border-electric-orange/50 bg-electric-orange/10 px-4 py-4 text-sm">
+          <p className="font-semibold text-white">Registration already submitted</p>
+          <p className="mt-1 text-slate-300">
+            An application for{' '}
+            <span className="text-white">
+              {existingApplication.fullName ||
+                [existingApplication.firstName, existingApplication.lastName]
+                  .filter(Boolean)
+                  .join(' ') ||
+                'this account'}
+            </span>{' '}
+            has already been submitted.
+          </p>
+          <p className="mt-1 text-slate-400">
+            Status:{' '}
+            <span className="capitalize text-white">
+              {existingApplication.status || 'submitted'}
+            </span>
+          </p>
+          <p className="mt-2 text-xs text-slate-400">
+            Each account may only submit one registration. Contact the program administrators if
+            you need to make changes.
+          </p>
+        </div>
+      )}
 
       <div
         className={`space-y-8 ${isFormLocked ? 'pointer-events-none opacity-60' : ''}`}
