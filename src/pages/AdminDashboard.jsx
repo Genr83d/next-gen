@@ -40,6 +40,19 @@ const formatTimestamp = (value) => {
   });
 };
 
+const getAge = (dob) => {
+  if (!dob) return null;
+  const birthDate = new Date(`${dob}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
+};
+
 const formatFileSize = (bytes) => {
   if (!bytes && bytes !== 0) return 'N/A';
   const megabytes = bytes / (1024 * 1024);
@@ -99,6 +112,7 @@ const AdminDashboard = () => {
     deletingId: null,
   });
   const [notesDrafts, setNotesDrafts] = useState({});
+  const [editingNotesId, setEditingNotesId] = useState(null);
   const [filters, setFilters] = useState({
     search: '',
     course: 'all',
@@ -248,6 +262,7 @@ const AdminDashboard = () => {
         email: authUser.email || '',
         displayName: authUser.displayName || '',
       });
+      setEditingNotesId(null);
     } catch (error) {
       setDataError(error?.message || 'Unable to save notes.');
     } finally {
@@ -565,6 +580,9 @@ const AdminDashboard = () => {
                         <p>{photoMeta?.contentType || 'No file type'}</p>
                         <p>{formatFileSize(photoMeta?.size)}</p>
                       </div>
+                      <p className="text-sm text-slate-300">
+                        Age: {getAge(application.dob) ?? 'N/A'}
+                      </p>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
@@ -638,28 +656,48 @@ const AdminDashboard = () => {
                     <label className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       Admin Notes
                     </label>
-                    <textarea
-                      rows={3}
-                      value={notesDrafts[application.id] || ''}
-                      onChange={(event) =>
-                        setNotesDrafts((prev) => ({
-                          ...prev,
-                          [application.id]: event.target.value,
-                        }))
-                      }
-                      className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange"
-                    />
-                    <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-                      <span>Last update: {formatTimestamp(application.notesUpdatedAt)}</span>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleNotesSave(application.id)}
-                        disabled={actionState.savingNotesId === application.id}
-                      >
-                        Save notes
-                      </Button>
-                    </div>
+                    {application.adminNotes && editingNotesId !== application.id ? (
+                      <>
+                        <p className="mt-2 whitespace-pre-wrap text-sm text-slate-300">
+                          {application.adminNotes}
+                        </p>
+                        <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                          <span>Last update: {formatTimestamp(application.notesUpdatedAt)}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setEditingNotesId(application.id)}
+                          >
+                            Edit note
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <textarea
+                          rows={3}
+                          value={notesDrafts[application.id] || ''}
+                          onChange={(event) =>
+                            setNotesDrafts((prev) => ({
+                              ...prev,
+                              [application.id]: event.target.value,
+                            }))
+                          }
+                          className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange"
+                        />
+                        <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+                          <span>Last update: {formatTimestamp(application.notesUpdatedAt)}</span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleNotesSave(application.id)}
+                            disabled={actionState.savingNotesId === application.id}
+                          >
+                            Save notes
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               );

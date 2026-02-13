@@ -3,11 +3,14 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { deleteObject, ref } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
@@ -42,6 +45,19 @@ export const submitApplication = async (payload) => {
   });
 
   return { id: docRef.id };
+};
+
+export const getApplicationByAuthUid = async (authUid) => {
+  if (!authUid) return null;
+  const q = query(
+    collection(db, 'application'),
+    where('authUid', '==', authUid),
+    limit(1)
+  );
+  const snapshot = await getDocs(q);
+  if (snapshot.empty) return null;
+  const docSnapshot = snapshot.docs[0];
+  return { id: docSnapshot.id, ...docSnapshot.data() };
 };
 
 export const listenToApplications = (callback, onError) => {
