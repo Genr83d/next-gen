@@ -40,6 +40,7 @@ const signaturePattern = /^(?=.*[\p{L}])[\p{L}\p{M}.'’ -]+$/u;
 const nameFields = new Set(['firstName', 'lastName', 'emergencyName', 'guardianName']);
 const phoneDigitsPattern = /^\d+$/;
 const maxPhoneDigits = 15;
+const minAge = 15;
 const maxPhotoSizeBytes = 512 * 1024;
 const allowedPhotoTypes = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
@@ -86,6 +87,11 @@ const RegistrationForm = () => {
   const [existingApplicationLoading, setExistingApplicationLoading] = useState(false);
 
   const age = useMemo(() => getAge(formData.dob), [formData.dob]);
+  const maxDob = useMemo(() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - minAge);
+    return d.toISOString().split('T')[0];
+  }, []);
   const requiresGuardian = age !== null && age < 18;
   const hasThirdPartyProvider = useMemo(
     () =>
@@ -270,7 +276,11 @@ const RegistrationForm = () => {
       nextErrors.lastName = 'Use letters, spaces, hyphens, and apostrophes only.';
     }
 
-    if (!formData.dob) nextErrors.dob = 'Date of birth is required.';
+    if (!formData.dob) {
+      nextErrors.dob = 'Date of birth is required.';
+    } else if (age !== null && age < minAge) {
+      nextErrors.dob = `Student must be at least ${minAge} years old.`;
+    }
     if (!formData.gender) {
       nextErrors.gender = 'Gender is required.';
     } else if (!allowedGenderValues.has(formData.gender)) {
@@ -605,6 +615,7 @@ const RegistrationForm = () => {
               id="dob"
               name="dob"
               type="date"
+              max={maxDob}
               value={formData.dob}
               onChange={updateField}
               className={`w-full rounded-xl border bg-black/30 px-4 py-3 text-sm text-white outline-none transition focus:border-electric-orange ${
