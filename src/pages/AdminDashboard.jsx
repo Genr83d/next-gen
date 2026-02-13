@@ -40,6 +40,19 @@ const formatTimestamp = (value) => {
   });
 };
 
+const getAge = (dob) => {
+  if (!dob) return null;
+  const birthDate = new Date(`${dob}T00:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+  return age;
+};
+
 const formatFileSize = (bytes) => {
   if (!bytes && bytes !== 0) return 'N/A';
   const megabytes = bytes / (1024 * 1024);
@@ -565,6 +578,9 @@ const AdminDashboard = () => {
                         <p>{photoMeta?.contentType || 'No file type'}</p>
                         <p>{formatFileSize(photoMeta?.size)}</p>
                       </div>
+                      <p className="text-sm text-slate-300">
+                        Age: {getAge(application.dob) ?? 'N/A'}
+                      </p>
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
