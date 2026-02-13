@@ -25,16 +25,6 @@ const Header = () => {
           >
             Home
           </NavLink>
-          <NavLink
-            to="/registration"
-            className={({ isActive }) =>
-              `transition ${
-                isActive ? 'text-electric-orange' : 'text-slate-200 hover:text-white'
-              }`
-            }
-          >
-            Registration
-          </NavLink>
           <Button as={Link} to="/registration" variant="primary" size="sm">
             Register Now
           </Button>
